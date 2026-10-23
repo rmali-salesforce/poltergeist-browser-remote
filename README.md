@@ -32,18 +32,24 @@ All machine-specific paths live in a `.env` file at the project root. The build 
    |---|---|
    | `FF_BRIDGE_PATH` | Absolute path where the Python host will live, e.g. `/Users/YOUR_USERNAME/.local/bin/ff_bridge.py`. |
    | `FF_SOCKET_DIR` | Directory for the per-profile Unix sockets. Default `/tmp`. |
+   | `FF_NATIVE_MESSAGING_DIR` | Directory where Firefox looks for Native Messaging manifests, e.g. `/Users/YOUR_USERNAME/Library/Application Support/Mozilla/NativeMessagingHosts`. |
+   | `FF_HAMMERSPOON_DIR` | Your Hammerspoon config directory, e.g. `/Users/YOUR_USERNAME/.hammerspoon`. |
    | `FF_AMO_JWT_ISSUER` | Mozilla AMO API key issuer (only needed for signing). |
    | `FF_AMO_JWT_SECRET` | Mozilla AMO API key secret (only needed for signing). |
+
+   The three path variables (`FF_BRIDGE_PATH`, `FF_NATIVE_MESSAGING_DIR`, `FF_HAMMERSPOON_DIR`) are the install destinations used by `npm run provision` and `npm run watch` — no path is hardcoded in the scripts.
 
    `.env` is gitignored — keep your real AMO credentials out of version control.
 
 ## Build
 
-Install dependencies once, then pick a build mode:
+Install dependencies once:
 
 ```bash
 npm install
 ```
+
+Then pick a build mode:
 
 * **`npm run build`** — substitutes your `.env` values and stages everything into a `dist/` folder:
   ```
@@ -55,9 +61,27 @@ npm install
   ```
 * **`npm run build:bundle`** — runs `build`, then signs a permanent `.xpi` from `dist/extension/` via Mozilla's Unlisted channel (output in `web-ext-artifacts/`). Requires `FF_AMO_JWT_ISSUER`/`FF_AMO_JWT_SECRET`; get an API key from the [Mozilla Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/api/key/).
 
+### Watch mode (development)
+
+* **`npm run watch`** — watches `src/`, `bin/`, and `install/` and, on every change, rebuilds `dist/` and deploys the native host, Native Messaging manifest, and Hammerspoon config to the destinations in your `.env`. No `.xpi` is produced. Hammerspoon auto-reloads its config on each deploy; reload the extension itself from `about:debugging` (see Step 3 below). Requires a configured `.env`.
+
 ## Installation Guide
 
-Run `npm run build` first — every step below installs files from `dist/`.
+### Quick install (recommended)
+
+After `npm install` and a configured `.env`, provision the machine:
+
+```bash
+npm run provision
+```
+
+This builds `dist/` and copies the native host, Native Messaging manifest, and Hammerspoon config to the destinations in your `.env` — automating Steps 1, 2, and 4 below. (If `.env` is missing, it is created from the template and the command stops so you can fill in your paths, then re-run.) An existing `~/.hammerspoon/init.lua` is backed up to `init.lua.bak` on first run.
+
+You still need to do the parts that can't be scripted: load/sign the extension in Firefox (Step 3), set your profile Identity in the popup, reload Hammerspoon, and optionally Step 5.
+
+### Manual install
+
+Prefer to install by hand, or want to understand what the installer does? Run `npm run build` first — every step below installs files from `dist/`.
 
 ### Step 1: Install the Native Messaging Host
 

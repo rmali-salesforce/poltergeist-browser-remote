@@ -5,9 +5,12 @@
   "description": "Bridge for triggering background actions across Firefox profiles",
   "scripts": {
     "build": "dotenv -- sh -c 'mkdir -p dist && rm -rf dist/extension && cp -R src dist/extension && sed \"s|__FF_BRIDGE_PATH__|$FF_BRIDGE_PATH|g\" install/NativeMessagingHosts/action_bridge.json > dist/action_bridge.json && sed \"s|__FF_SOCKET_DIR__|$FF_SOCKET_DIR|g\" install/hammerspoon/init.lua > dist/init.lua && sed \"s|__FF_SOCKET_DIR__|$FF_SOCKET_DIR|g\" bin/ff_bridge.py > dist/ff_bridge.py && chmod +x dist/ff_bridge.py'",
-    "build:bundle": "npm run build && dotenv -- sh -c 'web-ext sign --source-dir dist/extension --channel unlisted --api-key $FF_AMO_JWT_ISSUER --api-secret $FF_AMO_JWT_SECRET'"
+    "build:bundle": "npm run build && dotenv -- sh -c 'web-ext sign --source-dir dist/extension --channel unlisted --api-key $FF_AMO_JWT_ISSUER --api-secret $FF_AMO_JWT_SECRET'",
+    "provision": "node scripts/ensure-env.cjs && npm run build && dotenv -- sh scripts/deploy.sh",
+    "watch": "chokidar \"src/**/*\" \"bin/**/*\" \"install/**/*\" -c \"npm run build && dotenv -- sh scripts/deploy.sh\" --initial"
   },
   "devDependencies": {
+    "chokidar-cli": "^3.0.0",
     "dotenv-cli": "^7.4.2",
     "web-ext": "^8.0.0"
   }
