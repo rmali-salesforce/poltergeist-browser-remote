@@ -1,0 +1,13 @@
+{
+  "name": "ff-action-bridge",
+  "version": "1.0.1",
+  "private": true,
+  "description": "Bridge for triggering background actions across Firefox profiles",
+  "scripts": {
+    "build": "dotenv -- sh -c 'web-ext sign --source-dir src --channel unlisted --api-key $FF_AMO_JWT_ISSUER --api-secret $FF_AMO_JWT_SECRET'"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^7.4.2",
+    "web-ext": "^8.0.0"
+  }
+}

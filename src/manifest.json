@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Action Bridge",
+  "version": "1.0.1",
+  "description": "Bridge for triggering background actions across Firefox profiles",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "action-bridge@local"
+    }
+  },
+  "permissions": [
+    "storage",
+    "nativeMessaging",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://meet.google.com/*"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Action Bridge Status",
+    "default_popup": "popup.html",
+    "default_icon": "icon.svg"
+  }
+}

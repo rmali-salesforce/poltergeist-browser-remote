@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      width: 250px;
+      margin: 0;
+      padding: 14px;
+      background: #ffffff;
+      color: #222;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    .card {
+      background: #f4f4f5;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      border-color: #2563eb;
+    }
+    button {
+      margin-top: 8px;
+      width: 100%;
+      padding: 6px 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: #fff;
+      background-color: #2563eb;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    #feedback {
+      font-size: 11px;
+      color: #10b981;
+      margin-top: 6px;
+      min-height: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="status-dot"></div>
+    <span>Action Bridge</span>
+  </div>
+
+  <div class="card">
+    <div>Status: <strong id="statusDisplay">Checking...</strong></div>
+    <div>Assigned Profile: <strong id="profileDisplay">—</strong></div>
+  </div>
+
+  <label for="profileInput">Set Profile Name</label>
+  <input type="text" id="profileInput" placeholder="e.g. work, personal, customer">
+  <button id="saveBtn">Save Identity</button>
+  <div id="feedback"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
