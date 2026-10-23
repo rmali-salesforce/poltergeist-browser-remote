@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 import sys
 import os
+import re
 import json
 import struct
 import socket
 import threading
 import atexit
 import uuid
+
+MAX_STDIN_MSG = 10 * 1024 * 1024  # 10 MB
+MAX_SOCK_MSG = 1 * 1024 * 1024    # 1 MB
+_SAFE_PROFILE_RE = re.compile(r'^[a-z0-9_-]{1,64}$')
 
 active_socket_path = None
 stdout_lock = threading.Lock()
@@ -38,13 +43,25 @@ def read_from_firefox():
     if not raw_len or len(raw_len) < 4:
         return None
     msg_len = struct.unpack("@I", raw_len)[0]
+    if msg_len > MAX_STDIN_MSG:
+        return None
     data = sys.stdin.buffer.read(msg_len)
     return json.loads(data.decode("utf-8"))
 
 def handle_client(conn):
     """Handles an individual inbound socket connection from Hammerspoon."""
     try:
-        raw_data = conn.recv(4096)
+        chunks, total = [], 0
+        while True:
+            chunk = conn.recv(4096)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_SOCK_MSG:
+                conn.close()
+                return
+            chunks.append(chunk)
+        raw_data = b"".join(chunks)
         if not raw_data:
             conn.close()
             return
@@ -83,13 +100,16 @@ def handle_client(conn):
         conn.close()
 
 def listen_to_unix_socket(profile_name):
-    """Listens on /tmp/firefox_<profile>.sock for incoming commands."""
+    """Listens on __FF_SOCKET_DIR__/firefox_<profile>.sock for incoming commands."""
     global active_socket_path
-    active_socket_path = f"/tmp/firefox_{profile_name}.sock"
+    if not _SAFE_PROFILE_RE.match(profile_name):
+        profile_name = "default"
+    active_socket_path = f"__FF_SOCKET_DIR__/firefox_{profile_name}.sock"
     cleanup()
 
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     server.bind(active_socket_path)
+    os.chmod(active_socket_path, 0o600)
     server.listen(10)
 
     while True:
@@ -111,11 +131,13 @@ def main():
         # Handshake: initialize socket on registration
         if msg_type == "register":
             profile = msg.get("profile", "default")
+            if not _SAFE_PROFILE_RE.match(profile):
+                profile = "default"
             threading.Thread(target=listen_to_unix_socket, args=(profile,), daemon=True).start()
             send_to_firefox({
                 "type": "registered",
                 "profile": profile,
-                "socket": f"/tmp/firefox_{profile}.sock"
+                "socket": f"__FF_SOCKET_DIR__/firefox_{profile}.sock"
             })
 
         # Return journey: dispatch result received from background.js

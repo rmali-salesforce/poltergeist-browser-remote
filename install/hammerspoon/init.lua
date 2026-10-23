@@ -15,7 +15,7 @@ end):start()
 -- Helper: Broadcast an action to all running Firefox profiles
 local function broadcastAction(actionName)
     local cmd = string.format([[
-        for sock in /tmp/firefox_*.sock; do
+        for sock in __FF_SOCKET_DIR__/firefox_*.sock; do
             [ -S "$sock" ] && echo '{"action":"%s"}' | nc -U -w 1 "$sock" 2>/dev/null
         done
     ]], actionName)
@@ -24,7 +24,7 @@ end
 
 -- Focus ONLY the window with the active call by matching its native room code
 local function focusActiveMeetCall()
-    local handle = io.popen("ls /tmp/firefox_*.sock 2>/dev/null")
+    local handle = io.popen("ls __FF_SOCKET_DIR__/firefox_*.sock 2>/dev/null")
     if not handle then return end
 
     local activeCallCode = nil

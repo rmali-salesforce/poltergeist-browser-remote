@@ -1,10 +1,11 @@
 {
   "name": "ff-action-bridge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Bridge for triggering background actions across Firefox profiles",
   "scripts": {
-    "build": "dotenv -- sh -c 'web-ext sign --source-dir src --channel unlisted --api-key $FF_AMO_JWT_ISSUER --api-secret $FF_AMO_JWT_SECRET'"
+    "build": "dotenv -- sh -c 'mkdir -p dist && rm -rf dist/extension && cp -R src dist/extension && sed \"s|__FF_BRIDGE_PATH__|$FF_BRIDGE_PATH|g\" install/NativeMessagingHosts/action_bridge.json > dist/action_bridge.json && sed \"s|__FF_SOCKET_DIR__|$FF_SOCKET_DIR|g\" install/hammerspoon/init.lua > dist/init.lua && sed \"s|__FF_SOCKET_DIR__|$FF_SOCKET_DIR|g\" bin/ff_bridge.py > dist/ff_bridge.py && chmod +x dist/ff_bridge.py'",
+    "build:bundle": "npm run build && dotenv -- sh -c 'web-ext sign --source-dir dist/extension --channel unlisted --api-key $FF_AMO_JWT_ISSUER --api-secret $FF_AMO_JWT_SECRET'"
   },
   "devDependencies": {
     "dotenv-cli": "^7.4.2",

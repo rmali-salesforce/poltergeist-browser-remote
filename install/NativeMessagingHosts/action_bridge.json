@@ -1,7 +1,7 @@
 {
   "name": "action_bridge",
   "description": "Native Messaging Bridge for Hammerspoon to Firefox",
-  "path": "/Users/rmali/.local/bin/ff_bridge.py",
+  "path": "__FF_BRIDGE_PATH__",
   "type": "stdio",
   "allowed_extensions": [
     "action-bridge@local"

@@ -18,72 +18,94 @@ Currently optimized for **Google Meet**, enabling global hotkeys for toggling yo
 * **Node.js & npm** (for building and signing the extension).
 * **Firefox** (Standard, Developer Edition, or Nightly).
 
+## Configuration
+
+All machine-specific paths live in a `.env` file at the project root. The build reads these values and substitutes them into the generated install files, so you never hand-edit paths.
+
+1. Copy the template and fill in your values:
+   ```bash
+   cp example.env .env
+   ```
+2. Set the following in `.env`:
+
+   | Variable | Description |
+   |---|---|
+   | `FF_BRIDGE_PATH` | Absolute path where the Python host will live, e.g. `/Users/YOUR_USERNAME/.local/bin/ff_bridge.py`. |
+   | `FF_SOCKET_DIR` | Directory for the per-profile Unix sockets. Default `/tmp`. |
+   | `FF_AMO_JWT_ISSUER` | Mozilla AMO API key issuer (only needed for signing). |
+   | `FF_AMO_JWT_SECRET` | Mozilla AMO API key secret (only needed for signing). |
+
+   `.env` is gitignored — keep your real AMO credentials out of version control.
+
+## Build
+
+Install dependencies once, then pick a build mode:
+
+```bash
+npm install
+```
+
+* **`npm run build`** — substitutes your `.env` values and stages everything into a `dist/` folder:
+  ```
+  dist/
+  ├── extension/          # unpacked WebExtension (load via about:debugging)
+  ├── ff_bridge.py        # native host, paths substituted, executable
+  ├── action_bridge.json  # native messaging manifest, path substituted
+  └── init.lua            # Hammerspoon config, socket dir substituted
+  ```
+* **`npm run build:bundle`** — runs `build`, then signs a permanent `.xpi` from `dist/extension/` via Mozilla's Unlisted channel (output in `web-ext-artifacts/`). Requires `FF_AMO_JWT_ISSUER`/`FF_AMO_JWT_SECRET`; get an API key from the [Mozilla Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/api/key/).
+
 ## Installation Guide
 
-### Step 1: Install the Native Messaging Host
+Run `npm run build` first — every step below installs files from `dist/`.
 
-Firefox requires a local executable Python script to handle the bridge communication.
+### Step 1: Install the Native Messaging Host
 
 1. Create a local binaries directory if it doesn't exist:
    ```bash
    mkdir -p ~/.local/bin
    ```
-2. Copy the Python bridge script and make it executable:
+2. Copy the generated Python bridge script to the location you set in `FF_BRIDGE_PATH` (it is already executable):
    ```bash
-   cp bin/ff_bridge.py ~/.local/bin/ff_action_bridge.py
-   chmod +x ~/.local/bin/ff_action_bridge.py
+   cp dist/ff_bridge.py ~/.local/bin/ff_bridge.py
    ```
 
 ### Step 2: Register the Host with Firefox
-
-Firefox needs a manifest file to know the Python script is safe to execute.
 
 1. Create the Mozilla Native Messaging directory:
    ```bash
    mkdir -p "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
    ```
-2. Copy the configuration file:
+2. Copy the generated manifest (its `"path"` already points at `FF_BRIDGE_PATH`):
    ```bash
-   cp install/NativeMessagingHosts/action_bridge.json "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts/"
+   cp dist/action_bridge.json "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts/"
    ```
-3. **Important:** Open the copied `action_bridge.json` and ensure the `"path"` exactly matches your Mac username (e.g., `/Users/YOUR_USERNAME/.local/bin/ff_action_bridge.py`).
 
-### Step 3: Sign and Bundle the Extension
+### Step 3: Install the Extension in Firefox
 
-To install the extension permanently in standard Firefox, it must be signed via Mozilla's Unlisted Channel. 
+**For permanent installs** (standard Firefox), sign the extension first:
 
-1. Go to the [Mozilla Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/api/key/) and generate a new API key.
-2. In your terminal, navigate to the root of this project and install the build dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env` file in the root of the project to securely store your API keys (make sure `.env` is added to your `.gitignore` if you use version control):
-   ```env
-   FF_AMO_JWT_ISSUER=user:00000000:000
-   FF_AMO_JWT_SECRET=azerty
-   ```
-4. Run the build script to automatically sign the extension:
-   ```bash
-   npm run build
-   ```
-   *This will generate a signed `.xpi` file inside a `web-ext-artifacts/` directory.*
+1. Run `npm run build:bundle` to produce a signed `.xpi` in `web-ext-artifacts/`.
+2. Navigate to `about:addons`, click the gear icon (⚙️), and select **Install Add-on From File…**.
+3. Select the generated `.xpi`.
 
-### Step 4: Install the Extension in Firefox
+**For development/debugging**, load it temporarily instead:
 
-1. Open your Firefox profile.
-2. Navigate to `about:addons`.
-3. Click the gear icon (⚙️) in the top-right corner and select **Install Add-on From File…**.
-4. Select the `.xpi` file generated in Step 3.
-5. Click the Action Bridge icon on the toolbar, type your profile name (e.g., `work`, `customer`, `personal`), and click **Save Identity**. 
-6. Repeat this step for any other Firefox profiles you use.
+1. Navigate to `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…** and select `dist/extension/manifest.json`.
 
-### Step 5: Configure Hammerspoon
+Then, in either case:
 
-1. Copy the contents of `install/hammerspoon/init.lua` into your `~/.hammerspoon/init.lua` file.
+3. Click the Action Bridge icon on the toolbar, type your profile name (e.g., `work`, `customer`, `personal`), and click **Save Identity**.
+4. Repeat for any other Firefox profiles you use.
+
+### Step 4: Configure Hammerspoon
+
+1. Copy the contents of the generated `dist/init.lua` into your `~/.hammerspoon/init.lua` file.
    *(Note: If you already use Hammerspoon, append the contents to your existing configuration).*
 2. Reload your Hammerspoon configuration (Click the Hammerspoon menu bar icon ➔ **Reload Config**).
 
-### Step 6: (Optional but Recommended) Enable Background Camera Toggles
+### Step 5: (Optional but Recommended) Enable Background Camera Toggles
 
 By default, Firefox powers down webcam hardware if video is disabled for more than 3 seconds. To prevent background camera toggles from hanging on macOS security checks:
 
@@ -97,7 +119,7 @@ When you add new actions or make changes to the JavaScript files inside `src/`:
 
 1. Open `src/manifest.json` and bump the `"version"` number (e.g., from `1.0.0` to `1.0.1`). Mozilla requires a new version number for every signature.
 2. Ensure your `.env` file has your valid Mozilla credentials.
-3. Run `npm run build` again.
+3. Run `npm run build:bundle` again.
 4. Drag and drop the newly generated `.xpi` into `about:addons` to instantly update your profiles.
 
 ## Usage
@@ -105,7 +127,7 @@ When you add new actions or make changes to the JavaScript files inside `src/`:
 If you use Karabiner-Elements, map your desired physical keys (like Print Screen, Scroll Lock, Pause) to `F13`, `F14`, and `F15`.
 
 * **`F13`**: Toggle Microphone (Works entirely in the background)
-* **`F14`**: Toggle Camera (Works entirely in the background if Step 6 is completed)
+* **`F14`**: Toggle Camera (Works entirely in the background if Step 5 is completed)
 * **`F15`**: Focus Active Meet Call (Finds the active call window across all profiles and brings it to the front of your screen)
 
 You will see a Hammerspoon visual alert on your screen confirming the status of your action (e.g., `🎙️ Mic: ON (Unmuted)`).
