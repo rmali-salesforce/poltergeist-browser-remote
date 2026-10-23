@@ -20,30 +20,17 @@ The browser-side piece is the **Remote Haunt** WebExtension.
 * **Node.js & npm** (for building and signing the extension).
 * **Firefox** (Standard, Developer Edition, or Nightly).
 
-## Configuration
+## Usage
 
-All machine-specific paths live in a `.env` file at the project root. The build reads these values and substitutes them into the generated install files, so you never hand-edit paths.
+If you use Karabiner-Elements, map your desired physical keys (like Print Screen, Scroll Lock, Pause) to `F13`, `F14`, and `F15`.
 
-1. Copy the template and fill in your values:
-   ```bash
-   cp example.env .env
-   ```
-2. Set the following in `.env`:
+* **`F13`**: Toggle Microphone (works entirely in the background).
+* **`F14`**: Toggle Camera (works when the window is active).
+* **`F15`**: Focus Active Meet Call (finds the active call window across all profiles and brings it to the front of your screen).
 
-   | Variable | Description |
-   |---|---|
-   | `PGR_BRIDGE_PATH` | Absolute path where the Python host will live, e.g. `/Users/YOUR_USERNAME/.local/bin/poltergeist_bridge.py`. |
-   | `PGR_SOCKET_DIR` | Directory for the per-profile Unix sockets. Default `/tmp`. |
-   | `PGR_NATIVE_MESSAGING_DIR` | Directory where Firefox looks for Native Messaging manifests, e.g. `/Users/YOUR_USERNAME/Library/Application Support/Mozilla/NativeMessagingHosts`. |
-   | `PGR_HAMMERSPOON_DIR` | Your Hammerspoon config directory, e.g. `/Users/YOUR_USERNAME/.hammerspoon`. |
-   | `PGR_AMO_JWT_ISSUER` | Mozilla AMO API key issuer (only needed for signing). |
-   | `PGR_AMO_JWT_SECRET` | Mozilla AMO API key secret (only needed for signing). |
+You will see a Hammerspoon visual alert on your screen confirming the status of your action (e.g., `🎙️ Mic: ON (Unmuted)`).
 
-   The three path variables (`PGR_BRIDGE_PATH`, `PGR_NATIVE_MESSAGING_DIR`, `PGR_HAMMERSPOON_DIR`) are the install destinations used by `npm run provision` and `npm run watch` — no path is hardcoded in the scripts.
-
-   `.env` is gitignored — keep your real AMO credentials out of version control.
-
-## Build
+## Installation
 
 Install dependencies once:
 
@@ -51,9 +38,85 @@ Install dependencies once:
 npm install
 ```
 
-Then pick a build mode:
+Then follow the four steps below. Steps 1–2 are scripted by `npm run provision`; steps 3–4 are the browser-side parts that can't be automated.
 
-* **`npm run build`** — substitutes your `.env` values and stages everything into a `dist/` folder:
+### 1. Configure your paths
+
+All machine-specific paths live in a `.env` file at the project root. The build reads these values and substitutes them into the generated install files, so you never hand-edit paths.
+
+```bash
+npm run provision
+```
+
+On the first run this creates `.env` from `example.env` and stops so you can fill in your paths. Edit `.env`:
+
+| Variable | Description |
+|---|---|
+| `PGR_BRIDGE_PATH` | Absolute path where the Python host will be installed, e.g. `/Users/YOU/.local/bin/poltergeist_bridge.py`. |
+| `PGR_SOCKET_DIR` | Directory for the per-profile Unix sockets. Default `/tmp`. |
+| `PGR_NATIVE_MESSAGING_DIR` | Where Firefox looks for Native Messaging manifests, e.g. `/Users/YOU/Library/Application Support/Mozilla/NativeMessagingHosts`. |
+| `PGR_HAMMERSPOON_DIR` | Your Hammerspoon config directory, e.g. `/Users/YOU/.hammerspoon`. |
+| `PGR_AMO_JWT_ISSUER` | Mozilla AMO API key issuer (only needed to sign the extension). |
+| `PGR_AMO_JWT_SECRET` | Mozilla AMO API key secret (only needed to sign the extension). |
+
+`.env` is gitignored — keep your real AMO credentials out of version control.
+
+### 2. Provision the machine
+
+Run the same command again:
+
+```bash
+npm run provision
+```
+
+This builds everything into `dist/` and deploys the three OS-side pieces to the destinations in your `.env`:
+
+* the Python native host → `PGR_BRIDGE_PATH`
+* the Native Messaging manifest → `PGR_NATIVE_MESSAGING_DIR`
+* the Hammerspoon config → `PGR_HAMMERSPOON_DIR/init.lua`
+
+An existing `init.lua` is backed up to `init.lua.bak` on first run. Hammerspoon auto-reloads the config; if it doesn't, click the Hammerspoon menu bar icon ➔ **Reload Config**.
+
+### 3. Install the extension in Firefox
+
+**For a permanent install**, sign the extension (requires AMO credentials in `.env` — get an API key from the [Mozilla Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/api/key/)):
+
+```bash
+npm run build:bundle
+```
+
+Then navigate to `about:addons`, click the gear icon (⚙️) ➔ **Install Add-on From File…**, and select the `.xpi` from `web-ext-artifacts/`.
+
+**For a temporary install** (development/debugging), skip signing: navigate to `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…**, and select `dist/extension/manifest.json`.
+
+### 4. Set up the extension
+
+1. Click the Remote Haunt icon on the toolbar.
+2. Type your profile name (e.g., `work`, `customer`, `personal`) and click **Save Identity**. This name must match the socket the Hammerspoon script talks to (`poltergeist_<profile>.sock`).
+3. Repeat for any other Firefox profiles you use.
+
+## Troubleshooting
+
+Work up the pipeline, tier by tier, to find where a command stops.
+
+* **Hammerspoon receives the key.** Open the Hammerspoon Console (menu bar icon ➔ **Console**). Pressing `F13`/`F14`/`F15` should log activity. If nothing appears, the physical key isn't mapping to F13–F15 (check Karabiner-Elements).
+* **The socket exists.** With Firefox running and the extension loaded, the native host should create a socket per profile:
+  ```bash
+  ls -l /tmp/poltergeist_*.sock
+  ```
+  No socket means the native host never started — recheck steps 2 and 3, and that the profile identity (step 4) is saved.
+* **The native host is reachable.** Send a raw action to a socket and watch for a JSON reply (this is exactly what Hammerspoon does):
+  ```bash
+  echo '{"action":"meet_toggle_mic"}' | nc -U -w 2 /tmp/poltergeist_work.sock
+  ```
+  Any reply means the socket → host → extension round-trip works; an unknown action returns `{"success":false,"error":"ACTION_NOT_FOUND"}`, which is still a valid liveness check.
+* **The extension is running.** Go to `about:debugging#/runtime/this-firefox`, find **Remote Haunt**, and click **Inspect** to open its console. Errors from the native host or actions surface here. If you changed extension code, click **Reload** (temporary installs) or reinstall the signed `.xpi`.
+
+## Development
+
+### Build modes
+
+* **`npm run build`** — substitutes your `.env` values and stages everything into `dist/`:
   ```
   dist/
   ├── extension/               # unpacked Remote Haunt WebExtension (load via about:debugging)
@@ -61,99 +124,41 @@ Then pick a build mode:
   ├── poltergeist_bridge.json  # native messaging manifest, path substituted
   └── init.lua                 # Hammerspoon config, socket dir substituted
   ```
-* **`npm run build:bundle`** — runs `build`, then signs a permanent `.xpi` from `dist/extension/` via Mozilla's Unlisted channel (output in `web-ext-artifacts/`). Requires `PGR_AMO_JWT_ISSUER`/`PGR_AMO_JWT_SECRET`; get an API key from the [Mozilla Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/api/key/).
+* **`npm run build:bundle`** — runs `build`, then signs a permanent `.xpi` from `dist/extension/` via Mozilla's Unlisted channel (output in `web-ext-artifacts/`). Requires `PGR_AMO_JWT_ISSUER`/`PGR_AMO_JWT_SECRET`.
+* **`npm run provision`** — runs `build`, then deploys the native host, manifest, and Hammerspoon config to the destinations in your `.env` (the scripted part of [Installation](#installation)).
 
-### Watch mode (development)
-
-* **`npm run watch`** — watches `src/`, `bin/`, and `install/` and, on every change, rebuilds `dist/` and deploys the native host, Native Messaging manifest, and Hammerspoon config to the destinations in your `.env`. No `.xpi` is produced. Hammerspoon auto-reloads its config on each deploy; reload the extension itself from `about:debugging` (see Step 3 below). Requires a configured `.env`.
-
-## Installation Guide
-
-### Quick install (recommended)
-
-After `npm install` and a configured `.env`, provision the machine:
+### Watch mode
 
 ```bash
-npm run provision
+npm run watch
 ```
 
-This builds `dist/` and copies the native host, Native Messaging manifest, and Hammerspoon config to the destinations in your `.env` — automating Steps 1, 2, and 4 below. (If `.env` is missing, it is created from the template and the command stops so you can fill in your paths, then re-run.) An existing `~/.hammerspoon/init.lua` is backed up to `init.lua.bak` on first run.
-
-You still need to do the parts that can't be scripted: load/sign the extension in Firefox (Step 3), set your profile Identity in the popup, reload Hammerspoon, and optionally Step 5.
+Watches `src/`, `bin/`, and `install/` and, on every change, rebuilds `dist/` and redeploys the native host, Native Messaging manifest, and Hammerspoon config. No `.xpi` is produced. Hammerspoon auto-reloads its config on each deploy; reload the extension itself from `about:debugging`. Requires a configured `.env`.
 
 ### Manual install
 
-Prefer to install by hand, or want to understand what the installer does? Run `npm run build` first — every step below installs files from `dist/`.
+Prefer to install by hand, or want to understand what `provision` does? Run `npm run build` first, then copy the generated artifacts from `dist/` yourself:
 
-### Step 1: Install the Native Messaging Host
+```bash
+# 1. Native messaging host
+mkdir -p "$(dirname "$PGR_BRIDGE_PATH")"
+cp dist/poltergeist_bridge.py "$PGR_BRIDGE_PATH"   # already executable
 
-1. Create a local binaries directory if it doesn't exist:
-   ```bash
-   mkdir -p ~/.local/bin
-   ```
-2. Copy the generated Python bridge script to the location you set in `PGR_BRIDGE_PATH` (it is already executable):
-   ```bash
-   cp dist/poltergeist_bridge.py ~/.local/bin/poltergeist_bridge.py
-   ```
+# 2. Native messaging manifest (its "path" already points at PGR_BRIDGE_PATH)
+mkdir -p "$PGR_NATIVE_MESSAGING_DIR"
+cp dist/poltergeist_bridge.json "$PGR_NATIVE_MESSAGING_DIR/"
 
-### Step 2: Register the Host with Firefox
+# 3. Hammerspoon config (append to an existing init.lua if you already have one)
+cp dist/init.lua "$PGR_HAMMERSPOON_DIR/init.lua"
+```
 
-1. Create the Mozilla Native Messaging directory:
-   ```bash
-   mkdir -p "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
-   ```
-2. Copy the generated manifest (its `"path"` already points at `PGR_BRIDGE_PATH`):
-   ```bash
-   cp dist/poltergeist_bridge.json "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts/"
-   ```
+Then do the browser-side parts — [install the extension](#3-install-the-extension-in-firefox) and [set up the identity](#4-set-up-the-extension).
 
-### Step 3: Install the Extension in Firefox
+### Releasing an updated extension
 
-**For permanent installs** (standard Firefox), sign the extension first:
+When you change the JavaScript in `src/`, Mozilla requires a fresh version number to re-sign:
 
-1. Run `npm run build:bundle` to produce a signed `.xpi` in `web-ext-artifacts/`.
-2. Navigate to `about:addons`, click the gear icon (⚙️), and select **Install Add-on From File…**.
-3. Select the generated `.xpi`.
-
-**For development/debugging**, load it temporarily instead:
-
-1. Navigate to `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on…** and select `dist/extension/manifest.json`.
-
-Then, in either case:
-
-3. Click the Remote Haunt icon on the toolbar, type your profile name (e.g., `work`, `customer`, `personal`), and click **Save Identity**.
-4. Repeat for any other Firefox profiles you use.
-
-### Step 4: Configure Hammerspoon
-
-1. Copy the contents of the generated `dist/init.lua` into your `~/.hammerspoon/init.lua` file.
-   *(Note: If you already use Hammerspoon, append the contents to your existing configuration).*
-2. Reload your Hammerspoon configuration (Click the Hammerspoon menu bar icon ➔ **Reload Config**).
-
-### Step 5: (Optional but Recommended) Enable Background Camera Toggles
-
-By default, Firefox powers down webcam hardware if video is disabled for more than 3 seconds. To prevent background camera toggles from hanging on macOS security checks:
-
-1. Open a new tab in Firefox and navigate to `about:config`.
-2. Search for `media.getusermedia.camera.off_while_disabled.enabled`.
-3. Double-click to set it to **`false`**.
-
-## Automating Future Updates
-
-When you add new actions or make changes to the JavaScript files inside `src/`:
-
-1. Open `src/manifest.json` and bump the `"version"` number (e.g., from `1.0.0` to `1.0.1`). Mozilla requires a new version number for every signature.
-2. Ensure your `.env` file has your valid Mozilla credentials.
-3. Run `npm run build:bundle` again.
-4. Drag and drop the newly generated `.xpi` into `about:addons` to instantly update your profiles.
-
-## Usage
-
-If you use Karabiner-Elements, map your desired physical keys (like Print Screen, Scroll Lock, Pause) to `F13`, `F14`, and `F15`.
-
-* **`F13`**: Toggle Microphone (Works entirely in the background)
-* **`F14`**: Toggle Camera (Works entirely in the background if Step 5 is completed)
-* **`F15`**: Focus Active Meet Call (Finds the active call window across all profiles and brings it to the front of your screen)
-
-You will see a Hammerspoon visual alert on your screen confirming the status of your action (e.g., `🎙️ Mic: ON (Unmuted)`).
+1. Bump `"version"` in `src/manifest.json` (e.g., `1.0.0` → `1.0.1`).
+2. Make sure `.env` has valid AMO credentials.
+3. Run `npm run build:bundle`.
+4. Drag the new `.xpi` into `about:addons` to update your profiles.
