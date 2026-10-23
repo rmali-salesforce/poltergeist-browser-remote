@@ -1,6 +1,6 @@
 # AI Context & Architecture Notes
 
-This document provides system context, architectural constraints, and design decisions for AI coding assistants working on the `ff-action-bridge` project.
+This document provides system context, architectural constraints, and design decisions for AI coding assistants working on the `poltergeist-browser-remote` project.
 
 ## System Overview
 This project is a 3-tier, bidirectional IPC system allowing macOS global hotkeys to interact with specific background tabs in multi-profile Firefox environments, specifically optimized for Google Meet automation.
@@ -10,16 +10,16 @@ This project is a 3-tier, bidirectional IPC system allowing macOS global hotkeys
 
 ## Directory Structure
 * `src/`: The Firefox WebExtension (Manifest V3). Must be bundled into a `.xpi`.
-* `bin/`: The Python Native Messaging Host (`ff_bridge.py`). Runs locally on the OS.
+* `bin/`: The Python Native Messaging Host (`poltergeist_bridge.py`). Runs locally on the OS.
 * `install/`: Configurations for Mozilla NativeMessaging registry and Hammerspoon (`init.lua`).
 
 ## 1. Hammerspoon (The Client)
 * **Location:** `install/hammerspoon/init.lua`
-* **Role:** Intercepts hardware keys (F13-F15), polls available Unix sockets (`/tmp/firefox_*.sock`), and sends JSON payloads via `nc -U`.
+* **Role:** Intercepts hardware keys (F13-F15), polls available Unix sockets (`/tmp/poltergeist_*.sock`), and sends JSON payloads via `nc -U`.
 * **Constraint - Window Focusing:** Do **NOT** use `hs.application.get("Firefox"):activate()`. This pulls all windows across all profiles to the front. Instead, the Lua script waits for a `callCode` in the JSON response and strictly uses `hs.window:focus()` with a string-match on the window title (`title:find(callCode, 1, true)`).
 
 ## 2. Python Bridge (The Router)
-* **Location:** `bin/ff_bridge.py`
+* **Location:** `bin/poltergeist_bridge.py`
 * **Role:** Translates Unix Socket streams into Firefox's 4-byte length-prefixed Native Messaging format.
 * **Core Logic (Two-Way IPC):** Because Native Messaging is asynchronous but `nc` expects a synchronous response, the Python script injects a `req_id` (UUID) into the payload. It uses `threading.Event()` to suspend the socket handler until `background.js` returns the payload with the matching `req_id`.
 * **Constraint:** Must remain standard library only (no `pip install` dependencies). Must handle socket cleanup via `atexit`.
@@ -41,4 +41,4 @@ If writing new actions for `src/actions/meetActions.js`, strictly adhere to thes
 
 ## Build Process
 * `npm run build` leverages `dotenv-cli` and `web-ext sign`.
-* It expects `FF_AMO_JWT_ISSUER` and `FF_AMO_JWT_SECRET` in a `.env` file to sign via Mozilla's Unlisted channel.
+* It expects `PGR_AMO_JWT_ISSUER` and `PGR_AMO_JWT_SECRET` in a `.env` file to sign via Mozilla's Unlisted channel.

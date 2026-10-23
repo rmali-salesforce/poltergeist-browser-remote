@@ -1,14 +1,16 @@
-# Firefox Action Bridge & Google Meet Controller
+# Poltergeist Browser Remote
 
-A robust, background-capable bridge between macOS (via Hammerspoon) and Firefox. It allows you to send commands to specific Firefox profiles silently in the background without bringing the browser to the front.
+A robust, background-capable remote control between macOS (via Hammerspoon) and your browser. It lets you send commands to specific browser profiles silently in the background, without bringing the browser to the front — as if an invisible hand were operating the tab.
 
-Currently optimized for **Google Meet**, enabling global hotkeys for toggling your Microphone, Camera, and instantly focusing your active meeting window.
+The action layer is extensible: each capability is a self-contained action, statically registered at startup. The first action pack ships with **Google Meet** support — global hotkeys for toggling your Microphone, Camera, and instantly focusing your active meeting window — but new action packs can be added for any site.
+
+The browser-side piece is the **Remote Haunt** WebExtension.
 
 ## Architecture
 
 1. **Hammerspoon (Lua)**: Intercepts global keyboard shortcuts (e.g., F13, F14, F15) and sends a JSON payload to a local Unix socket.
-2. **Native Messaging Host (Python)**: A lightweight background process spawned by Firefox that listens on `/tmp/firefox_<profile>.sock` and pipes commands into the browser.
-3. **WebExtension (JavaScript)**: Receives the command, finds the active Google Meet tab, executes the DOM manipulation, and returns the result/status back up the chain for on-screen feedback.
+2. **Native Messaging Host (Python)**: A lightweight background process (the Poltergeist bridge) spawned by the browser that listens on `/tmp/poltergeist_<profile>.sock` and pipes commands into the browser.
+3. **WebExtension (JavaScript)**: The **Remote Haunt** extension receives the command, finds the target tab, executes the DOM manipulation, and returns the result/status back up the chain for on-screen feedback.
 
 ## Prerequisites
 
@@ -30,14 +32,14 @@ All machine-specific paths live in a `.env` file at the project root. The build 
 
    | Variable | Description |
    |---|---|
-   | `FF_BRIDGE_PATH` | Absolute path where the Python host will live, e.g. `/Users/YOUR_USERNAME/.local/bin/ff_bridge.py`. |
-   | `FF_SOCKET_DIR` | Directory for the per-profile Unix sockets. Default `/tmp`. |
-   | `FF_NATIVE_MESSAGING_DIR` | Directory where Firefox looks for Native Messaging manifests, e.g. `/Users/YOUR_USERNAME/Library/Application Support/Mozilla/NativeMessagingHosts`. |
-   | `FF_HAMMERSPOON_DIR` | Your Hammerspoon config directory, e.g. `/Users/YOUR_USERNAME/.hammerspoon`. |
-   | `FF_AMO_JWT_ISSUER` | Mozilla AMO API key issuer (only needed for signing). |
-   | `FF_AMO_JWT_SECRET` | Mozilla AMO API key secret (only needed for signing). |
+   | `PGR_BRIDGE_PATH` | Absolute path where the Python host will live, e.g. `/Users/YOUR_USERNAME/.local/bin/poltergeist_bridge.py`. |
+   | `PGR_SOCKET_DIR` | Directory for the per-profile Unix sockets. Default `/tmp`. |
+   | `PGR_NATIVE_MESSAGING_DIR` | Directory where Firefox looks for Native Messaging manifests, e.g. `/Users/YOUR_USERNAME/Library/Application Support/Mozilla/NativeMessagingHosts`. |
+   | `PGR_HAMMERSPOON_DIR` | Your Hammerspoon config directory, e.g. `/Users/YOUR_USERNAME/.hammerspoon`. |
+   | `PGR_AMO_JWT_ISSUER` | Mozilla AMO API key issuer (only needed for signing). |
+   | `PGR_AMO_JWT_SECRET` | Mozilla AMO API key secret (only needed for signing). |
 
-   The three path variables (`FF_BRIDGE_PATH`, `FF_NATIVE_MESSAGING_DIR`, `FF_HAMMERSPOON_DIR`) are the install destinations used by `npm run provision` and `npm run watch` — no path is hardcoded in the scripts.
+   The three path variables (`PGR_BRIDGE_PATH`, `PGR_NATIVE_MESSAGING_DIR`, `PGR_HAMMERSPOON_DIR`) are the install destinations used by `npm run provision` and `npm run watch` — no path is hardcoded in the scripts.
 
    `.env` is gitignored — keep your real AMO credentials out of version control.
 
@@ -54,12 +56,12 @@ Then pick a build mode:
 * **`npm run build`** — substitutes your `.env` values and stages everything into a `dist/` folder:
   ```
   dist/
-  ├── extension/          # unpacked WebExtension (load via about:debugging)
-  ├── ff_bridge.py        # native host, paths substituted, executable
-  ├── action_bridge.json  # native messaging manifest, path substituted
-  └── init.lua            # Hammerspoon config, socket dir substituted
+  ├── extension/               # unpacked Remote Haunt WebExtension (load via about:debugging)
+  ├── poltergeist_bridge.py    # native host, paths substituted, executable
+  ├── poltergeist_bridge.json  # native messaging manifest, path substituted
+  └── init.lua                 # Hammerspoon config, socket dir substituted
   ```
-* **`npm run build:bundle`** — runs `build`, then signs a permanent `.xpi` from `dist/extension/` via Mozilla's Unlisted channel (output in `web-ext-artifacts/`). Requires `FF_AMO_JWT_ISSUER`/`FF_AMO_JWT_SECRET`; get an API key from the [Mozilla Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/api/key/).
+* **`npm run build:bundle`** — runs `build`, then signs a permanent `.xpi` from `dist/extension/` via Mozilla's Unlisted channel (output in `web-ext-artifacts/`). Requires `PGR_AMO_JWT_ISSUER`/`PGR_AMO_JWT_SECRET`; get an API key from the [Mozilla Add-on Developer Hub](https://addons.mozilla.org/en-US/developers/addon/api/key/).
 
 ### Watch mode (development)
 
@@ -89,9 +91,9 @@ Prefer to install by hand, or want to understand what the installer does? Run `n
    ```bash
    mkdir -p ~/.local/bin
    ```
-2. Copy the generated Python bridge script to the location you set in `FF_BRIDGE_PATH` (it is already executable):
+2. Copy the generated Python bridge script to the location you set in `PGR_BRIDGE_PATH` (it is already executable):
    ```bash
-   cp dist/ff_bridge.py ~/.local/bin/ff_bridge.py
+   cp dist/poltergeist_bridge.py ~/.local/bin/poltergeist_bridge.py
    ```
 
 ### Step 2: Register the Host with Firefox
@@ -100,9 +102,9 @@ Prefer to install by hand, or want to understand what the installer does? Run `n
    ```bash
    mkdir -p "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
    ```
-2. Copy the generated manifest (its `"path"` already points at `FF_BRIDGE_PATH`):
+2. Copy the generated manifest (its `"path"` already points at `PGR_BRIDGE_PATH`):
    ```bash
-   cp dist/action_bridge.json "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts/"
+   cp dist/poltergeist_bridge.json "$HOME/Library/Application Support/Mozilla/NativeMessagingHosts/"
    ```
 
 ### Step 3: Install the Extension in Firefox
@@ -120,7 +122,7 @@ Prefer to install by hand, or want to understand what the installer does? Run `n
 
 Then, in either case:
 
-3. Click the Action Bridge icon on the toolbar, type your profile name (e.g., `work`, `customer`, `personal`), and click **Save Identity**.
+3. Click the Remote Haunt icon on the toolbar, type your profile name (e.g., `work`, `customer`, `personal`), and click **Save Identity**.
 4. Repeat for any other Firefox profiles you use.
 
 ### Step 4: Configure Hammerspoon

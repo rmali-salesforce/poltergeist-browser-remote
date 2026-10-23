@@ -1,0 +1,9 @@
+{
+  "name": "poltergeist_bridge",
+  "description": "Poltergeist Browser Remote native messaging host (Hammerspoon <-> browser)",
+  "path": "__PGR_BRIDGE_PATH__",
+  "type": "stdio",
+  "allowed_extensions": [
+    "remote-haunt@local"
+  ]
+}

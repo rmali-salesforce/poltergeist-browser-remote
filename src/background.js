@@ -4,7 +4,7 @@ let currentProfile = "unconfigured";
 let nativePort = null;
 
 function connectNativeHost() {
-  nativePort = browser.runtime.connectNative("action_bridge");
+  nativePort = browser.runtime.connectNative("poltergeist_bridge");
 
   nativePort.onMessage.addListener(async (message) => {
     if (!message || !message.action) return;

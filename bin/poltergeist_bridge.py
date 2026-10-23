@@ -100,11 +100,11 @@ def handle_client(conn):
         conn.close()
 
 def listen_to_unix_socket(profile_name):
-    """Listens on __FF_SOCKET_DIR__/firefox_<profile>.sock for incoming commands."""
+    """Listens on __PGR_SOCKET_DIR__/poltergeist_<profile>.sock for incoming commands."""
     global active_socket_path
     if not _SAFE_PROFILE_RE.match(profile_name):
         profile_name = "default"
-    active_socket_path = f"__FF_SOCKET_DIR__/firefox_{profile_name}.sock"
+    active_socket_path = f"__PGR_SOCKET_DIR__/poltergeist_{profile_name}.sock"
     cleanup()
 
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -137,7 +137,7 @@ def main():
             send_to_firefox({
                 "type": "registered",
                 "profile": profile,
-                "socket": f"__FF_SOCKET_DIR__/firefox_{profile}.sock"
+                "socket": f"__PGR_SOCKET_DIR__/poltergeist_{profile}.sock"
             })
 
         # Return journey: dispatch result received from background.js

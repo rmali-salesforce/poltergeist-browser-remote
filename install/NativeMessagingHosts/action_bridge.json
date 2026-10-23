@@ -1,9 +1,0 @@
-{
-  "name": "action_bridge",
-  "description": "Native Messaging Bridge for Hammerspoon to Firefox",
-  "path": "__FF_BRIDGE_PATH__",
-  "type": "stdio",
-  "allowed_extensions": [
-    "action-bridge@local"
-  ]
-}

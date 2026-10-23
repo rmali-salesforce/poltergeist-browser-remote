@@ -1,11 +1,11 @@
 {
-  "name": "ff-action-bridge",
-  "version": "1.0.2",
+  "name": "poltergeist-browser-remote",
+  "version": "1.1.0",
   "private": true,
-  "description": "Bridge for triggering background actions across Firefox profiles",
+  "description": "Poltergeist Browser Remote: drive background browser tabs from macOS global hotkeys",
   "scripts": {
-    "build": "dotenv -- sh -c 'mkdir -p dist && rm -rf dist/extension && cp -R src dist/extension && sed \"s|__FF_BRIDGE_PATH__|$FF_BRIDGE_PATH|g\" install/NativeMessagingHosts/action_bridge.json > dist/action_bridge.json && sed \"s|__FF_SOCKET_DIR__|$FF_SOCKET_DIR|g\" install/hammerspoon/init.lua > dist/init.lua && sed \"s|__FF_SOCKET_DIR__|$FF_SOCKET_DIR|g\" bin/ff_bridge.py > dist/ff_bridge.py && chmod +x dist/ff_bridge.py'",
-    "build:bundle": "npm run build && dotenv -- sh -c 'web-ext sign --source-dir dist/extension --channel unlisted --api-key $FF_AMO_JWT_ISSUER --api-secret $FF_AMO_JWT_SECRET'",
+    "build": "dotenv -- sh -c 'mkdir -p dist && rm -rf dist/extension && cp -R src dist/extension && sed \"s|__PGR_BRIDGE_PATH__|$PGR_BRIDGE_PATH|g\" install/NativeMessagingHosts/poltergeist_bridge.json > dist/poltergeist_bridge.json && sed \"s|__PGR_SOCKET_DIR__|$PGR_SOCKET_DIR|g\" install/hammerspoon/init.lua > dist/init.lua && sed \"s|__PGR_SOCKET_DIR__|$PGR_SOCKET_DIR|g\" bin/poltergeist_bridge.py > dist/poltergeist_bridge.py && chmod +x dist/poltergeist_bridge.py'",
+    "build:bundle": "npm run build && dotenv -- sh -c 'web-ext sign --source-dir dist/extension --channel unlisted --api-key $PGR_AMO_JWT_ISSUER --api-secret $PGR_AMO_JWT_SECRET'",
     "provision": "node scripts/ensure-env.cjs && npm run build && dotenv -- sh scripts/deploy.sh",
     "watch": "chokidar \"src/**/*\" \"bin/**/*\" \"install/**/*\" -c \"npm run build && dotenv -- sh scripts/deploy.sh\" --initial"
   },
